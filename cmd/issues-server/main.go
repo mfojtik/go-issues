@@ -8,17 +8,19 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 
+	"golang.org/x/oauth2"
+
 	"github.com/google/go-github/github"
+	gh "github.com/mfojtik/go-issues/pkg/github"
 	"github.com/mfojtik/go-issues/pkg/templates"
 )
 
 const (
 	// TODO: Make this configurable
-	OrgName = "openshift"
-	// TODO: Make this configurable
-	RepoName          = "origin"
+	defaultRepo       = "openshift/origin"
 	defaultServerAddr = "localhost:8666"
 
 	// TODO: Make this configurable
@@ -58,17 +60,6 @@ func init() {
 	flag.StringVar(&cli.BindAddr, "bind", defaultServerAddr, "Bind on this address and port")
 }
 
-func FetchIssuesForUser(user string) []github.Issue {
-	client := github.NewClient(nil)
-	issues, _, err := client.Issues.ListByRepo(OrgName, RepoName, &github.IssueListByRepoOptions{
-		Assignee: user,
-	})
-	if err != nil {
-		log.Fatalf("Unable to list issues: %v", err)
-	}
-	return issues
-}
-
 func WriteIssuesCache(list IssuesList) {
 	cacheContent, err := json.Marshal(list)
 	if err != nil {
@@ -99,34 +90,28 @@ func main() {
 
 	var (
 		issues   IssuesList
+		err      error
 		hasCache bool
-		wg       sync.WaitGroup
 	)
+	token := os.Getenv("GITHUB_AUTH_TOKEN")
+	tc := oauth2.NewClient(oauth2.NoContext, oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	))
+	client := github.NewClient(tc)
 
 	if cli.UseCache {
 		if cachedIssues := ReadIssuesFromCache(); cachedIssues != nil {
-			issues.Lock()
 			issues = *cachedIssues
-			issues.Unlock()
 			hasCache = true
 			log.Printf("Using %d issues found in %q cache file\n", len(issues.Issues), cacheFile)
 		}
 	}
 
 	if !hasCache {
-		issues.Issues = make(map[string][]github.Issue)
-		for _, user := range defaultUsers {
-			wg.Add(1)
-			go func(u string) {
-				issues.Lock()
-				defer wg.Done()
-				defer issues.Unlock()
-				issues.Issues[u] = FetchIssuesForUser(u)
-				log.Printf("Fetched %d issues assigned to @%s\n", len(issues.Issues[u]), u)
-			}(user)
+		issues.Issues, err = gh.FetchIssues(client, defaultRepo, defaultUsers)
+		if err != nil {
+			log.Printf("Error fetching issues from Github: %v\n", err)
 		}
-		log.Printf("Fetching GitHub issues ...\n")
-		wg.Wait()
 	}
 
 	if cli.UseCache {
@@ -140,12 +125,19 @@ func main() {
 			http.NotFound(w, req)
 			return
 		}
+		if len(req.URL.Query().Get("refresh")) > 0 {
+			issues.Lock()
+			issues.Issues, err = gh.FetchIssues(client, defaultRepo, defaultUsers)
+			issues.Unlock()
+			if err != nil {
+				fmt.Fprintf(w, "ERROR: %v", err)
+				return
+			}
+		}
 		t := template.New("issues")
 		t, _ = t.Parse(templates.IssuesTemplate)
-		issues.Lock()
 		t.Execute(w, issues)
 		defer func() {
-			issues.Unlock()
 			if r := recover(); r != nil {
 				fmt.Println("Recovered from panic!", r)
 			}
