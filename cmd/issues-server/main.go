@@ -36,6 +36,9 @@ var (
 		"mnagy",
 		"csrwng",
 		"jcantrill",
+		"rhcarvalho",
+		"gabemontero",
+		"ewolinetz ",
 	}
 	cli = CLI{}
 )
