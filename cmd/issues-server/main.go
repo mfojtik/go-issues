@@ -15,12 +15,17 @@ import (
 )
 
 const (
-	OrgName    = "openshift"
-	RepoName   = "origin"
-	serverAddr = "localhost:8666"
-	cacheFile  = "issues-cache.json"
+	// TODO: Make this configurable
+	OrgName = "openshift"
+	// TODO: Make this configurable
+	RepoName          = "origin"
+	defaultServerAddr = "localhost:8666"
+
+	// TODO: Make this configurable
+	cacheFile = "issues-cache.json"
 )
 
+// TODO: Make this configurable
 var (
 	defaultUsers = []string{
 		"soltysh",
@@ -42,10 +47,12 @@ type IssuesList struct {
 
 type CLI struct {
 	UseCache bool
+	BindAddr string
 }
 
 func init() {
 	flag.BoolVar(&cli.UseCache, "use-cache", false, fmt.Sprintf("Attempt to use issues cached in %q", cacheFile))
+	flag.StringVar(&cli.BindAddr, "bind", defaultServerAddr, "Bind on this address and port")
 }
 
 func FetchIssuesForUser(user string) []github.Issue {
@@ -124,7 +131,7 @@ func main() {
 		WriteIssuesCache(issues)
 	}
 
-	log.Printf("Starting HTTP server %q ...\n", "http://"+serverAddr)
+	log.Printf("Starting HTTP server %q ...\n", "http://"+cli.BindAddr)
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path != "/" {
 			http.NotFound(w, req)
@@ -142,5 +149,5 @@ func main() {
 		}()
 	})
 
-	log.Fatal(http.ListenAndServe(serverAddr, nil))
+	log.Fatal(http.ListenAndServe(cli.BindAddr, nil))
 }
