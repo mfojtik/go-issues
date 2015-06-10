@@ -88,6 +88,11 @@ func ReadIssuesFromCache() *IssuesList {
 func main() {
 	flag.Parse()
 
+	// Make this work in OpenShift v2
+	if len(os.Getenv("HOST")) > 0 && len(os.Getenv("PORT")) > 0 {
+		cli.BindAddr = fmt.Sprintf("%s:%s", os.Getenv("HOST"), os.Getenv("PORT"))
+	}
+
 	var (
 		issues   IssuesList
 		err      error
