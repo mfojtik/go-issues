@@ -1,0 +1,25 @@
+{
+	"ImportPath": "github.com/mfojtik/go-issues",
+	"GoVersion": "go1.4.2",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/google/go-github/github",
+			"Rev": "508dcfd4c05dc9873c7b731c5154b40a4f65671f"
+		},
+		{
+			"ImportPath": "github.com/google/go-querystring/query",
+			"Rev": "547ef5ac979778feb2f760cdb5f4eae1a2207b86"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "a8c61998a557a37435f719980da368469c10bfed"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "b5adcc2dcdf009d0391547edc6ecbaff889f5bb9"
+		}
+	]
+}
